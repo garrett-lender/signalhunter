@@ -1,116 +1,295 @@
 # SignalHunter
 
-SignalHunter is a Linux process, network, memory, and behavioral monitoring tool written in C.
+SignalHunter is a modular Linux behavioral monitoring and telemetry platform written in C.
 
-It is organized as a small daemon with capability-focused libraries. The goal is to keep the core loop simple while making each detector easier to maintain, replace, or eventually load dynamically.
+It combines process monitoring, process lineage, eBPF syscall telemetry, network monitoring, injection detection, bounded memory inspection, shellcode heuristics, filesystem monitoring, global risk scoring, and forensic case generation.
 
-## What SignalHunter Does
+SignalHunter is intended as a defensive Linux telemetry and EDR-style research platform.
 
-SignalHunter monitors Linux systems for suspicious process behavior using:
+---
 
-- `/proc` process and network inspection
-- process lineage tracking
-- global per-process scoring
-- forensic case creation
-- memory-map injection detection
-- bounded `/proc/<pid>/mem` inspection
-- architecture-aware shellcode/NOP heuristics
-- fanotify filesystem monitoring
-- optional eBPF syscall/network telemetry
-- local SHA-256 hashing with no OpenSSL dependency
+## Major capabilities
 
-SignalHunter is alert-first. It does not kill or stop processes by default.
+### Process monitoring
 
-## Code Layout
+SignalHunter tracks visible Linux processes and collects:
+
+- PID and PPID
+- executable path
+- command line
+- cwd/root
+- environment
+- memory maps
+- open file descriptors
+- process lifecycle events
+- exec transitions
+
+### Process lineage
+
+SignalHunter maintains parent/child process relationships and exports process trees in cases.
+
+Case artifacts include:
 
 ```text
-signalhunter/
-├── include/
-│   └── signalhunter/
-│       ├── signalhunter.h      # shared public project declarations
-│       ├── score.h             # global per-process score model
-│       ├── memscan.h           # bounded memory scanner API
-│       ├── shellcode.h         # shellcode/NOP heuristic API
-│       └── sha256.h            # local SHA-256 API
-├── src/
-│   ├── app/
-│   │   └── main.c              # daemon startup, CLI args, main loop
-│   ├── core/
-│   │   ├── score.c             # cumulative process scoring and thresholds
-│   │   └── util.c              # logging, files, common helpers
-│   ├── case/
-│   │   ├── case.c              # forensic case creation and artifacts
-│   │   └── inspect.c           # process snapshot helpers
-│   ├── detect/
-│   │   ├── inject.c            # maps-based injection heuristics
-│   │   ├── memscan.c           # /proc/<pid>/mem scanner
-│   │   └── shellcode.c         # architecture-aware shellcode heuristics
-│   ├── net/
-│   │   └── netmon.c            # TCP/socket monitoring and beacon scoring
-│   ├── platform/
-│   │   ├── ebpfmon.c           # userspace eBPF loader/event handler
-│   │   ├── fanmon.c            # fanotify filesystem monitor
-│   │   └── proc_events.c       # process lifecycle backend
-│   ├── crypto/
-│   │   └── sha256.c            # endian-safe SHA-256 implementation
-│   └── ebpf/
-│       └── signalhunter_ebpf.bpf.c
-├── examples/
-│   └── *.py                    # benign trigger examples
-├── scripts/
-│   └── bpf_arch.sh             # BPF target arch helper
-└── Makefile
+process_tree.txt
+lineage.tsv
+tree_manifest.tsv
+timeline.txt
 ```
 
-## Capability Libraries
+### Network monitoring
 
-### app
+SignalHunter monitors TCP/socket behavior and scores:
 
-Owns CLI parsing and the daemon loop.
+- beacon-like reconnect timing
+- heartbeat intervals
+- rapid connection bursts
+- SYN-scan-like behavior
+- raw sockets
+- packet sockets
+- unusual socket usage
 
-### core
+### Injection detection
 
-Owns shared utilities and the global score engine. Detectors should report behavior through the score engine instead of directly opening cases.
+SignalHunter scans `/proc/<pid>/maps` for:
 
-### case
+- RWX mappings
+- anonymous executable mappings
+- executable memfd mappings
+- deleted executable mappings
+- executable mappings from suspicious paths
+- ptrace indicators
 
-Owns forensic case directories and process snapshots. Case artifacts include process metadata, maps, file descriptors, score timelines, and memory findings when available.
+### Memory inspection
 
-### detect
+SignalHunter performs bounded `/proc/<pid>/mem` inspection on suspicious mappings only.
 
-Owns behavioral and memory detections, including injection checks, memory scanning, and shellcode/NOP heuristics.
+Memory case artifacts may include:
 
-### net
+```text
+memory_findings.txt
+memory_strings.txt
+mem_region_000.bin
+```
 
-Owns network visibility and beacon/scan-style behavior detection.
+### Shellcode heuristics
 
-### platform
+SignalHunter includes architecture-aware shellcode/NOP heuristics for:
 
-Owns OS-specific event backends such as fanotify, proc connector, and eBPF loader code.
+- x86
+- x86_64
+- ARM
+- ARM64
+- MIPS big-endian and little-endian patterns
 
-### crypto
+Heuristics include:
 
-Owns the local SHA-256 implementation. SignalHunter no longer depends on OpenSSL for hashing.
+- NOP sled detection
+- syscall stub detection
+- ELF headers in suspicious memory
+- PE headers in suspicious memory
+- suspicious executable memory patterns
 
-### ebpf
+### Optional eBPF telemetry
 
-Contains the kernel-side eBPF C source.
+When built with `make ebpf`, SignalHunter can monitor low-level syscall/socket behavior including:
+
+- `ptrace`
+- executable `mmap` / `mprotect`
+- `memfd_create`
+- raw socket creation
+- connect activity
+- `process_vm_readv` / `process_vm_writev`
+- exec activity
+
+### Filesystem monitoring
+
+fanotify support detects suspicious filesystem activity, including:
+
+- executable access
+- execution from temporary paths
+- chmod/executable permission changes
+- temporary executable creation
+
+---
+
+## Risk scoring v2
+
+SignalHunter now uses an explainable risk model instead of simple flat additive scoring.
+
+Detectors still call:
+
+```c
+rw_score_add(...)
+```
+
+Internally, scoring now uses:
+
+- typed findings
+- category buckets
+- risk floors for critical signals
+- score decay
+- correlation bonuses
+- explainable case summaries
+
+Risk categories:
+
+```text
+memory
+network
+process
+filesystem
+lineage
+```
+
+Examples of correlations:
+
+```text
+executable memfd + NOP/shellcode pattern
+executable memory anomaly + beacon/connect behavior
+RWX memory + raw/packet socket
+temporary-path execution + beacon/connect behavior
+raw/packet socket + scan-like behavior
+ptrace + process_vm activity
+PE/ELF header in suspicious RWX memory
+```
+
+Cases include:
+
+```text
+risk_summary.txt
+score_timeline.log
+```
+
+`risk_summary.txt` explains:
+
+- current risk
+- peak risk
+- category scores
+- correlation bonus
+- risk floor
+- top recent scoring events
+
+---
+
+## Forensic cases
+
+When a process crosses the case threshold, SignalHunter creates:
+
+```text
+logs/cases/pid_<pid>_<timestamp>/
+```
+
+Possible artifacts:
+
+```text
+case.log
+actions.log
+risk_summary.txt
+score_timeline.log
+timeline.txt
+
+cmdline.bin
+status.txt
+maps.txt
+fds.txt
+environ.bin
+
+process_tree.txt
+lineage.tsv
+tree_manifest.tsv
+
+memory_findings.txt
+memory_strings.txt
+mem_region_000.bin
+
+exe.dump
+exe.sha256
+```
+
+SignalHunter attempts to write placeholder/error files when a process exits before evidence can be collected.
+
+---
+
+## Modular architecture
+
+Source layout:
+
+```text
+include/signalhunter/
+
+src/
+├── app/
+├── case/
+├── core/
+├── crypto/
+├── detect/
+├── ebpf/
+├── net/
+└── platform/
+```
+
+Runtime modules are initialized/polled through the module manager.
+
+Current module-oriented components include:
+
+- proc connector
+- fanotify
+- eBPF
+- network monitor
+- injection monitor
+- lineage refresh
+- score maintenance
+- case maintenance
+
+The static module interface is intended to support future `dlopen()`-based dynamic modules.
+
+---
 
 ## Build
 
-### Standard build
+Standard build:
 
 ```bash
 make
 ```
 
+Clean:
+
+```bash
+make clean
+```
+
 ### eBPF build
+
+Install dependencies:
+
+```bash
+sudo apt install \
+  clang \
+  llvm \
+  libbpf-dev \
+  libelf-dev \
+  zlib1g-dev \
+  linux-libc-dev \
+  linux-headers-$(uname -r)
+```
+
+Build:
 
 ```bash
 make ebpf
 ```
 
-For ARM64 cross-builds:
+### ARM64 cross-build
+
+Install cross compiler:
+
+```bash
+sudo apt install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
+```
+
+Build:
 
 ```bash
 make clean
@@ -120,135 +299,97 @@ make ebpf \
   BPF_INCLUDE=/usr/aarch64-linux-gnu/include
 ```
 
-The userspace binary and eBPF object are separate outputs:
+SignalHunter uses a local SHA-256 implementation, so OpenSSL development headers are not required.
 
-```text
-signalhunter              # userspace daemon
-signalhunter_ebpf.bpf.o   # eBPF bytecode object
-```
+---
 
 ## Run
 
-```bash
-sudo ./signalhunter
-```
-
-Verbose mode:
+Run with root privileges for best visibility:
 
 ```bash
 sudo ./signalhunter --verbose
 ```
 
-Case threshold example:
+Use a custom case threshold:
 
 ```bash
-sudo ./signalhunter --case-threshold 85 --injection-scan-seconds 2
+sudo ./signalhunter --case-threshold 85 --verbose
 ```
 
-## Logs and Cases
+Aggressive injection scan interval for testing:
 
-Runtime logs are written under:
+```bash
+sudo ./signalhunter --case-threshold 85 --injection-scan-seconds 1 --verbose
+```
+
+---
+
+## Logs
+
+Logs are written under:
 
 ```text
 logs/
 ```
 
-Case directories are written under:
+Common files:
 
 ```text
-logs/cases/
+alerts.log
+scores.log
+network.log
+injection.log
+events.log
+cases/
 ```
 
-Each case is intended to preserve triage data for one suspicious process, including score history and available process artifacts.
+SignalHunter supports log rotation, archive retention, duplicate suppression, score logging, and case timelines.
 
-## Examples
+---
 
-Benign trigger examples are under:
+## Example triggers
+
+Examples live under:
 
 ```text
 examples/
 ```
 
-Useful examples include:
-
-- heartbeat/reconnect beaconing
-- RWX mmap
-- executable memfd mapping
-- raw socket opening
-- localhost scan-like connects
-- execution from `/tmp`
-
-## Design Direction
-
-The current structure is ready for a plugin-style architecture. The next step is to define a common module interface, for example:
-
-```c
-typedef struct sh_module {
-    const char *name;
-    int (*init)(void);
-    int (*poll)(void);
-    void (*shutdown)(void);
-} sh_module_t;
-```
-
-Static modules can use that interface first. Dynamic loading via `dlopen()` can be added later without changing detector internals.
-
-
-## Useful Testing Option
-
-For memory/injection heuristic testing, shorten the full injection scan interval:
+Useful tests:
 
 ```bash
-sudo ./signalhunter --case-threshold 85 --injection-scan-seconds 2 --verbose
+python3 examples/test_mem_heuristics.py --sleep 90
+python3 examples/test_process_tree_exec.py
+python3 examples/heartbeat_reconnect.py
+sudo python3 examples/raw_socket_open.py
 ```
 
-This makes RWX/memfd mapping test scripts score quickly enough to create cases.
+For memory/shellcode testing, run SignalHunter with:
 
+```bash
+sudo ./signalhunter --case-threshold 85 --injection-scan-seconds 1 --verbose
+```
 
-## Module Architecture
+Then run:
 
-SignalHunter uses a static module interface for event backends. The interface is defined in:
+```bash
+python3 examples/test_mem_heuristics.py --sleep 90
+```
+
+Expected case artifacts include:
 
 ```text
-include/signalhunter/module.h
-src/core/module.c
-```
-
-A module is represented as:
-
-```c
-typedef struct rw_module {
-    const char *name;
-    int initialized;
-    int fd;
-    void *state;
-
-    int (*enabled)(const rw_config_t *cfg);
-    int (*init)(struct rw_module *module, const rw_config_t *cfg);
-    void (*poll)(struct rw_module *module, const rw_config_t *cfg);
-    void (*shutdown)(struct rw_module *module);
-} rw_module_t;
-```
-
-Current static modules:
-
-- `proc_connector`
-- `fanotify`
-- `ebpf`
-
-The daemon initializes enabled modules at startup and polls them through the module manager. This keeps detector internals separated from the app loop and prepares the project for future dynamic loading via `dlopen()`/`dlsym()`.
-
-## Event Timeline and Tree Manifest
-
-SignalHunter keeps a bounded in-memory event timeline. Scoring, process lifecycle events, and other detector activity are recorded through the central event API. When a case is opened or updated, SignalHunter exports related events and lineage artifacts into the case directory.
-
-Case lineage/timeline artifacts include:
-
-```text
+risk_summary.txt
+memory_findings.txt
+score_timeline.log
 timeline.txt
 tree_manifest.tsv
-lineage.tsv
 process_tree.txt
 ```
 
-`timeline.txt` contains timestamped related events for the suspicious process family. `tree_manifest.tsv` contains the observed process family with PID, PPID, command name, executable path, command line, timestamps, and exit state.
+---
+
+## Notes
+
+SignalHunter is an evolving research platform, not a production security product. It is designed for defensive monitoring, Linux telemetry research, detection engineering, and EDR prototyping.
