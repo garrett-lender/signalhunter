@@ -427,3 +427,128 @@ exe_prefix=/usr/lib/firefox/
 exe=/usr/bin/vmtoolsd
 pid=1234
 ```
+
+---
+
+# Dynamic Plugins
+
+SignalHunter supports dynamic detector modules loaded with `dlopen()`.
+
+Built-in modules still load through the static module manager. Dynamic modules are optional and are loaded after built-ins.
+
+## Plugin ABI
+
+A plugin is a shared object that exports:
+
+```c
+rw_module_t *signalhunter_module(void);
+```
+
+The returned module uses the same interface as static modules:
+
+```c
+typedef struct rw_module
+{
+    const char *name;
+    int initialized;
+    int fd;
+    void *state;
+
+    int (*enabled)(const rw_config_t *cfg);
+    int (*init)(rw_module_t *module, const rw_config_t *cfg);
+    void (*poll)(rw_module_t *module, const rw_config_t *cfg);
+    void (*shutdown)(rw_module_t *module);
+
+    int abi_version;
+} rw_module_t;
+```
+
+Set:
+
+```c
+.abi_version = RW_MODULE_ABI_VERSION
+```
+
+## Build the example plugin
+
+```bash
+make plugins
+```
+
+This builds:
+
+```text
+plugins/example_heartbeat.so
+```
+
+## Load plugins
+
+By default SignalHunter scans:
+
+```text
+plugins/
+```
+
+for `*.so` files.
+
+Run:
+
+```bash
+sudo ./signalhunter --verbose
+```
+
+You should see something like:
+
+```text
+[ok] dynamic module example_heartbeat enabled from plugins/example_heartbeat.so
+```
+
+## Disable dynamic plugins
+
+```bash
+sudo ./signalhunter --no-dynamic-plugins
+```
+
+## Use a different plugin directory
+
+```bash
+sudo ./signalhunter --plugin-dir /opt/signalhunter/plugins
+```
+
+## Module config file
+
+Default:
+
+```text
+config/modules.conf
+```
+
+Example:
+
+```ini
+builtin.whitelist=on
+builtin.proc_connector=on
+builtin.fanotify=on
+builtin.ebpf=off
+
+plugin_dir=plugins
+plugin=plugins/example_heartbeat.so
+```
+
+Use a custom config:
+
+```bash
+sudo ./signalhunter --module-config config/modules.conf
+```
+
+## Notes
+
+Dynamic plugins are loaded with `RTLD_NOW | RTLD_LOCAL`.
+
+The main binary is linked with `-rdynamic` so plugins can call exported SignalHunter helpers like:
+
+```c
+rw_log_info(...)
+rw_event_add(...)
+rw_score_add(...)
+```

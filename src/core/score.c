@@ -11,18 +11,18 @@
 #define RW_DECAY_SECONDS 30
 #define RW_DECAY_AMOUNT 1
 
-#define RW_FINDING_RWX              (1ULL << 0)
-#define RW_FINDING_MEMFD            (1ULL << 1)
-#define RW_FINDING_NOP              (1ULL << 2)
-#define RW_FINDING_BEACON           (1ULL << 3)
-#define RW_FINDING_RAW_SOCKET       (1ULL << 4)
-#define RW_FINDING_SYNSCAN          (1ULL << 5)
-#define RW_FINDING_TMP_EXEC         (1ULL << 6)
-#define RW_FINDING_PTRACE           (1ULL << 7)
-#define RW_FINDING_PROCESS_VM       (1ULL << 8)
-#define RW_FINDING_PE_ELF           (1ULL << 9)
-#define RW_FINDING_SUSPICIOUS_FILE  (1ULL << 10)
-#define RW_FINDING_EXEC_MEMORY      (1ULL << 11)
+#define RW_FINDING_RWX (1ULL << 0)
+#define RW_FINDING_MEMFD (1ULL << 1)
+#define RW_FINDING_NOP (1ULL << 2)
+#define RW_FINDING_BEACON (1ULL << 3)
+#define RW_FINDING_RAW_SOCKET (1ULL << 4)
+#define RW_FINDING_SYNSCAN (1ULL << 5)
+#define RW_FINDING_TMP_EXEC (1ULL << 6)
+#define RW_FINDING_PTRACE (1ULL << 7)
+#define RW_FINDING_PROCESS_VM (1ULL << 8)
+#define RW_FINDING_PE_ELF (1ULL << 9)
+#define RW_FINDING_SUSPICIOUS_FILE (1ULL << 10)
+#define RW_FINDING_EXEC_MEMORY (1ULL << 11)
 
 static rw_proc_score_t g_scores[RW_MAX_PROCS];
 static size_t g_score_count;
@@ -108,14 +108,10 @@ static int contains_ci(const char* haystack, const char* needle)
 
 static int is_browser_like(const char* comm, const char* exe)
 {
-    return contains_ci(comm, "firefox") ||
-           contains_ci(comm, "chrome") ||
-           contains_ci(comm, "chromium") ||
-           contains_ci(comm, "web content") ||
-           contains_ci(comm, "isolated web") ||
-           contains_ci(exe, "/firefox") ||
-           contains_ci(exe, "/chrome") ||
-           contains_ci(exe, "/chromium");
+    return contains_ci(comm, "firefox") || contains_ci(comm, "chrome") ||
+           contains_ci(comm, "chromium") || contains_ci(comm, "web content") ||
+           contains_ci(comm, "isolated web") || contains_ci(exe, "/firefox") ||
+           contains_ci(exe, "/chrome") || contains_ci(exe, "/chromium");
 }
 
 static rw_proc_score_t* find_proc(int pid)
@@ -216,41 +212,29 @@ void rw_score_decay_all(const rw_config_t* cfg)
 
 static rw_risk_category_t classify_category(const char* category, const char* reason)
 {
-    if (contains_ci(category, "mem") ||
-        contains_ci(category, "inject") ||
-        contains_ci(reason, "rwx") ||
-        contains_ci(reason, "memfd") ||
-        contains_ci(reason, "nop") ||
-        contains_ci(reason, "elf") ||
-        contains_ci(reason, "pe header"))
+    if (contains_ci(category, "mem") || contains_ci(category, "inject") ||
+        contains_ci(reason, "rwx") || contains_ci(reason, "memfd") || contains_ci(reason, "nop") ||
+        contains_ci(reason, "elf") || contains_ci(reason, "pe header"))
     {
         return RW_RISK_MEMORY;
     }
 
-    if (contains_ci(category, "net") ||
-        contains_ci(category, "tcp") ||
-        contains_ci(category, "connect") ||
-        contains_ci(category, "raw_socket") ||
-        contains_ci(category, "packet_socket") ||
-        contains_ci(category, "synscan") ||
-        contains_ci(reason, "beacon") ||
-        contains_ci(reason, "socket"))
+    if (contains_ci(category, "net") || contains_ci(category, "tcp") ||
+        contains_ci(category, "connect") || contains_ci(category, "raw_socket") ||
+        contains_ci(category, "packet_socket") || contains_ci(category, "synscan") ||
+        contains_ci(reason, "beacon") || contains_ci(reason, "socket"))
     {
         return RW_RISK_NETWORK;
     }
 
-    if (contains_ci(category, "file") ||
-        contains_ci(reason, "chmod") ||
-        contains_ci(reason, "/tmp/") ||
-        contains_ci(reason, "/dev/shm/"))
+    if (contains_ci(category, "file") || contains_ci(reason, "chmod") ||
+        contains_ci(reason, "/tmp/") || contains_ci(reason, "/dev/shm/"))
     {
         return RW_RISK_FILESYSTEM;
     }
 
-    if (contains_ci(category, "lineage") ||
-        contains_ci(reason, "parent") ||
-        contains_ci(reason, "child") ||
-        contains_ci(reason, "process tree"))
+    if (contains_ci(category, "lineage") || contains_ci(reason, "parent") ||
+        contains_ci(reason, "child") || contains_ci(reason, "process tree"))
     {
         return RW_RISK_LINEAGE;
     }
@@ -277,7 +261,8 @@ static unsigned long long classify_flags(const char* category, const char* reaso
         flags |= RW_FINDING_NOP;
     }
 
-    if (contains_ci(reason, "beacon") || contains_ci(reason, "reconnect") || contains_ci(category, "connect"))
+    if (contains_ci(reason, "beacon") || contains_ci(reason, "reconnect") ||
+        contains_ci(category, "connect"))
     {
         flags |= RW_FINDING_BEACON;
     }
@@ -292,12 +277,14 @@ static unsigned long long classify_flags(const char* category, const char* reaso
         flags |= RW_FINDING_RAW_SOCKET;
     }
 
-    if (contains_ci(category, "synscan") || contains_ci(reason, "syn_sent") || contains_ci(reason, "scan"))
+    if (contains_ci(category, "synscan") || contains_ci(reason, "syn_sent") ||
+        contains_ci(reason, "scan"))
     {
         flags |= RW_FINDING_SYNSCAN;
     }
 
-    if (contains_ci(reason, "/tmp/") || contains_ci(reason, "/dev/shm/") || contains_ci(reason, "temporary"))
+    if (contains_ci(reason, "/tmp/") || contains_ci(reason, "/dev/shm/") ||
+        contains_ci(reason, "temporary"))
     {
         flags |= RW_FINDING_TMP_EXEC | RW_FINDING_SUSPICIOUS_FILE;
     }
@@ -356,11 +343,8 @@ static int default_floor_for_finding(const char* category, const char* reason, i
     return floor;
 }
 
-static int normalized_points(const rw_proc_score_t* p,
-                             rw_risk_category_t cat,
-                             const char* category,
-                             const char* reason,
-                             int points)
+static int normalized_points(const rw_proc_score_t* p, rw_risk_category_t cat, const char* category,
+                             const char* reason, int points)
 {
     int out = points;
 
@@ -447,11 +431,10 @@ static int compute_weighted_score(const rw_proc_score_t* p)
     int weighted;
     int max_cat = 0;
 
-    weighted = (p->category_scores[RW_RISK_MEMORY] * 30) +
-               (p->category_scores[RW_RISK_NETWORK] * 25) +
-               (p->category_scores[RW_RISK_PROCESS] * 20) +
-               (p->category_scores[RW_RISK_FILESYSTEM] * 15) +
-               (p->category_scores[RW_RISK_LINEAGE] * 10);
+    weighted =
+        (p->category_scores[RW_RISK_MEMORY] * 30) + (p->category_scores[RW_RISK_NETWORK] * 25) +
+        (p->category_scores[RW_RISK_PROCESS] * 20) + (p->category_scores[RW_RISK_FILESYSTEM] * 15) +
+        (p->category_scores[RW_RISK_LINEAGE] * 10);
 
     weighted /= 100;
 
@@ -499,13 +482,8 @@ static void recompute_score(rw_proc_score_t* p)
     }
 }
 
-int rw_score_add(int pid,
-                 const char* comm,
-                 const char* exe,
-                 const rw_config_t* cfg,
-                 const char* category,
-                 const char* reason,
-                 int points)
+int rw_score_add(int pid, const char* comm, const char* exe, const rw_config_t* cfg,
+                 const char* category, const char* reason, int points)
 {
     rw_proc_score_t* p;
     rw_risk_category_t cat;
@@ -552,7 +530,8 @@ int rw_score_add(int pid,
     normalized = normalized_points(p, cat, category, reason, points);
     floor = default_floor_for_finding(category, reason, points);
 
-    if (cfg && cfg->enable_whitelist && rw_whitelist_match(pid, p->comm, p->exe, whitelist_reason, sizeof(whitelist_reason)))
+    if (cfg && cfg->enable_whitelist &&
+        rw_whitelist_match(pid, p->comm, p->exe, whitelist_reason, sizeof(whitelist_reason)))
     {
         int percent = cfg->whitelist_score_percent;
 
@@ -596,61 +575,37 @@ int rw_score_add(int pid,
         ev->total_score = p->score;
         ev->category_score = p->category_scores[cat];
         ev->correlation_bonus = p->correlation_bonus;
-        snprintf(ev->category, sizeof(ev->category), "%s", category && *category ? category : category_name(cat));
+        snprintf(ev->category, sizeof(ev->category), "%s",
+                 category && *category ? category : category_name(cat));
         snprintf(ev->reason, sizeof(ev->reason), "%s", reason && *reason ? reason : "unknown");
     }
 
     threshold = cfg && cfg->case_threshold > 0 ? cfg->case_threshold : 60;
 
-    rw_log_score("pid=%d comm=%s exe=%s risk=%d peak=%d delta=%d raw_points=%d before=%d threshold=%d bucket=%s bucket_score=%d corr=%d floor=%d whitelisted=%d whitelist_reason=%s category=%s reason=%s",
-                 pid,
-                 p->comm,
-                 p->exe,
-                 p->score,
-                 p->peak_score,
-                 normalized,
-                 points,
-                 before,
-                 threshold,
-                 category_name(cat),
-                 p->category_scores[cat],
-                 p->correlation_bonus,
-                 p->risk_floor,
-                 whitelisted,
-                 whitelist_reason[0] ? whitelist_reason : "none",
+    rw_log_score("pid=%d comm=%s exe=%s risk=%d peak=%d delta=%d raw_points=%d before=%d "
+                 "threshold=%d bucket=%s bucket_score=%d corr=%d floor=%d whitelisted=%d "
+                 "whitelist_reason=%s category=%s reason=%s",
+                 pid, p->comm, p->exe, p->score, p->peak_score, normalized, points, before,
+                 threshold, category_name(cat), p->category_scores[cat], p->correlation_bonus,
+                 p->risk_floor, whitelisted, whitelist_reason[0] ? whitelist_reason : "none",
                  category && *category ? category : "unknown",
                  reason && *reason ? reason : "unknown");
 
-    rw_event_addf(pid,
-                  category && *category ? category : "score",
-                  "risk=%d before=%d delta=%d raw_points=%d peak=%d threshold=%d bucket=%s bucket_score=%d corr=%d floor=%d whitelisted=%d whitelist_reason=%s comm=%s exe=%s reason=%s",
-                  p->score,
-                  before,
-                  normalized,
-                  points,
-                  p->peak_score,
-                  threshold,
-                  category_name(cat),
-                  p->category_scores[cat],
-                  p->correlation_bonus,
-                  p->risk_floor,
-                  whitelisted,
-                  whitelist_reason[0] ? whitelist_reason : "none",
-                  p->comm,
-                  p->exe,
-                  reason && *reason ? reason : "unknown");
+    rw_event_addf(
+        pid, category && *category ? category : "score",
+        "risk=%d before=%d delta=%d raw_points=%d peak=%d threshold=%d bucket=%s bucket_score=%d "
+        "corr=%d floor=%d whitelisted=%d whitelist_reason=%s comm=%s exe=%s reason=%s",
+        p->score, before, normalized, points, p->peak_score, threshold, category_name(cat),
+        p->category_scores[cat], p->correlation_bonus, p->risk_floor, whitelisted,
+        whitelist_reason[0] ? whitelist_reason : "none", p->comm, p->exe,
+        reason && *reason ? reason : "unknown");
 
     if (cfg && cfg->verbose)
     {
-        printf("[score] pid=%d risk=%d +%d bucket=%s bucket_score=%d corr=%d whitelisted=%d reason=%s\n",
-               pid,
-               p->score,
-               normalized,
-               category_name(cat),
-               p->category_scores[cat],
-               p->correlation_bonus,
-               whitelisted,
-               reason && *reason ? reason : "unknown");
+        printf("[score] pid=%d risk=%d +%d bucket=%s bucket_score=%d corr=%d whitelisted=%d "
+               "reason=%s\n",
+               pid, p->score, normalized, category_name(cat), p->category_scores[cat],
+               p->correlation_bonus, whitelisted, reason && *reason ? reason : "unknown");
     }
 
     if (p->score >= threshold)
@@ -659,58 +614,35 @@ int rw_score_add(int pid,
         {
             p->case_opened = 1;
             rw_log_alert("case threshold crossed pid=%d risk=%d threshold=%d category=%s reason=%s",
-                         pid,
-                         p->score,
-                         threshold,
-                         category && *category ? category : "unknown",
+                         pid, p->score, threshold, category && *category ? category : "unknown",
                          reason && *reason ? reason : "unknown");
         }
 
-        rw_case_event(pid,
-                      p->score,
-                      cfg,
-                      category && *category ? category : "SCORE",
-                      "risk=%d delta=%d raw_points=%d peak=%d bucket=%s bucket_score=%d corr=%d floor=%d whitelisted=%d whitelist_reason=%s comm=%s exe=%s reason=%s",
-                      p->score,
-                      normalized,
-                      points,
-                      p->peak_score,
-                      category_name(cat),
-                      p->category_scores[cat],
-                      p->correlation_bonus,
-                      p->risk_floor,
-                      whitelisted,
-                      whitelist_reason[0] ? whitelist_reason : "none",
-                      p->comm,
-                      p->exe,
+        rw_case_event(pid, p->score, cfg, category && *category ? category : "SCORE",
+                      "risk=%d delta=%d raw_points=%d peak=%d bucket=%s bucket_score=%d corr=%d "
+                      "floor=%d whitelisted=%d whitelist_reason=%s comm=%s exe=%s reason=%s",
+                      p->score, normalized, points, p->peak_score, category_name(cat),
+                      p->category_scores[cat], p->correlation_bonus, p->risk_floor, whitelisted,
+                      whitelist_reason[0] ? whitelist_reason : "none", p->comm, p->exe,
                       reason && *reason ? reason : "unknown");
     }
     else if (rw_case_has(pid))
     {
-        rw_case_event(pid,
-                      p->score,
-                      cfg,
-                      category && *category ? category : "SCORE",
-                      "below_threshold_update risk=%d delta=%d raw_points=%d peak=%d bucket=%s bucket_score=%d corr=%d floor=%d whitelisted=%d whitelist_reason=%s comm=%s exe=%s reason=%s",
-                      p->score,
-                      normalized,
-                      points,
-                      p->peak_score,
-                      category_name(cat),
-                      p->category_scores[cat],
-                      p->correlation_bonus,
-                      p->risk_floor,
-                      whitelisted,
-                      whitelist_reason[0] ? whitelist_reason : "none",
-                      p->comm,
-                      p->exe,
+        rw_case_event(pid, p->score, cfg, category && *category ? category : "SCORE",
+                      "below_threshold_update risk=%d delta=%d raw_points=%d peak=%d bucket=%s "
+                      "bucket_score=%d corr=%d floor=%d whitelisted=%d whitelist_reason=%s comm=%s "
+                      "exe=%s reason=%s",
+                      p->score, normalized, points, p->peak_score, category_name(cat),
+                      p->category_scores[cat], p->correlation_bonus, p->risk_floor, whitelisted,
+                      whitelist_reason[0] ? whitelist_reason : "none", p->comm, p->exe,
                       reason && *reason ? reason : "unknown");
     }
 
     return p->score;
 }
 
-static void write_correlation(FILE* fp, const rw_proc_score_t* p, unsigned long long flags, const char* text, int bonus)
+static void write_correlation(FILE* fp, const rw_proc_score_t* p, unsigned long long flags,
+                              const char* text, int bonus)
 {
     if (has_flags(p, flags))
     {
@@ -768,29 +700,31 @@ int rw_score_write_case(int pid, const char* case_dir)
     }
 
     fprintf(fp, "\nCorrelations:\n");
-    write_correlation(fp, p, RW_FINDING_MEMFD | RW_FINDING_NOP, "executable memfd + NOP/shellcode pattern", 25);
-    write_correlation(fp, p, RW_FINDING_EXEC_MEMORY | RW_FINDING_BEACON, "executable memory anomaly + beacon/connect behavior", 20);
-    write_correlation(fp, p, RW_FINDING_RWX | RW_FINDING_RAW_SOCKET, "RWX memory + raw/packet socket", 25);
-    write_correlation(fp, p, RW_FINDING_TMP_EXEC | RW_FINDING_BEACON, "temporary-path execution + beacon/connect behavior", 20);
-    write_correlation(fp, p, RW_FINDING_RAW_SOCKET | RW_FINDING_SYNSCAN, "raw/packet socket + scan-like behavior", 20);
-    write_correlation(fp, p, RW_FINDING_PTRACE | RW_FINDING_PROCESS_VM, "ptrace + process_vm activity", 25);
-    write_correlation(fp, p, RW_FINDING_TMP_EXEC | RW_FINDING_EXEC_MEMORY, "temporary-path artifact + executable memory", 15);
-    write_correlation(fp, p, RW_FINDING_PE_ELF | RW_FINDING_RWX, "PE/ELF header in RWX/suspicious memory", 15);
+    write_correlation(fp, p, RW_FINDING_MEMFD | RW_FINDING_NOP,
+                      "executable memfd + NOP/shellcode pattern", 25);
+    write_correlation(fp, p, RW_FINDING_EXEC_MEMORY | RW_FINDING_BEACON,
+                      "executable memory anomaly + beacon/connect behavior", 20);
+    write_correlation(fp, p, RW_FINDING_RWX | RW_FINDING_RAW_SOCKET,
+                      "RWX memory + raw/packet socket", 25);
+    write_correlation(fp, p, RW_FINDING_TMP_EXEC | RW_FINDING_BEACON,
+                      "temporary-path execution + beacon/connect behavior", 20);
+    write_correlation(fp, p, RW_FINDING_RAW_SOCKET | RW_FINDING_SYNSCAN,
+                      "raw/packet socket + scan-like behavior", 20);
+    write_correlation(fp, p, RW_FINDING_PTRACE | RW_FINDING_PROCESS_VM,
+                      "ptrace + process_vm activity", 25);
+    write_correlation(fp, p, RW_FINDING_TMP_EXEC | RW_FINDING_EXEC_MEMORY,
+                      "temporary-path artifact + executable memory", 15);
+    write_correlation(fp, p, RW_FINDING_PE_ELF | RW_FINDING_RWX,
+                      "PE/ELF header in RWX/suspicious memory", 15);
 
     fprintf(fp, "\nRecent score events:\n");
 
     for (size_t i = 0; i < p->event_count; i++)
     {
         rw_score_event_t* ev = &p->events[i];
-        fprintf(fp,
-                "  [%ld] total=%d delta=%d category_score=%d corr=%d category=%s reason=%s\n",
-                (long)ev->ts,
-                ev->total_score,
-                ev->points,
-                ev->category_score,
-                ev->correlation_bonus,
-                ev->category,
-                ev->reason);
+        fprintf(fp, "  [%ld] total=%d delta=%d category_score=%d corr=%d category=%s reason=%s\n",
+                (long)ev->ts, ev->total_score, ev->points, ev->category_score,
+                ev->correlation_bonus, ev->category, ev->reason);
     }
 
     fclose(fp);
@@ -812,15 +746,9 @@ int rw_score_write_case(int pid, const char* case_dir)
     for (size_t i = 0; i < p->event_count; i++)
     {
         rw_score_event_t* ev = &p->events[i];
-        fprintf(fp,
-                "[%ld] total=%d delta=%d category_score=%d corr=%d category=%s reason=%s\n",
-                (long)ev->ts,
-                ev->total_score,
-                ev->points,
-                ev->category_score,
-                ev->correlation_bonus,
-                ev->category,
-                ev->reason);
+        fprintf(fp, "[%ld] total=%d delta=%d category_score=%d corr=%d category=%s reason=%s\n",
+                (long)ev->ts, ev->total_score, ev->points, ev->category_score,
+                ev->correlation_bonus, ev->category, ev->reason);
     }
 
     fclose(fp);

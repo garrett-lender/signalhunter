@@ -43,6 +43,8 @@ CONTROL_PREFIXES = (
     "while ",
     "while(",
     "else",
+    "else if(",
+    "else if (",
 )
 
 

@@ -37,7 +37,7 @@ static char g_path[RW_MAX_PATH];
 static time_t g_last_mtime;
 static int g_loaded;
 
-static int contains_ci(const char *haystack, const char *needle)
+static int contains_ci(const char* haystack, const char* needle)
 {
     size_t needle_len;
 
@@ -53,7 +53,7 @@ static int contains_ci(const char *haystack, const char *needle)
         return 1;
     }
 
-    for (const char *p = haystack; *p; p++)
+    for (const char* p = haystack; *p; p++)
     {
         size_t i;
 
@@ -82,7 +82,7 @@ static int contains_ci(const char *haystack, const char *needle)
     return 0;
 }
 
-static int starts_with(const char *s, const char *prefix)
+static int starts_with(const char* s, const char* prefix)
 {
     size_t n;
 
@@ -96,10 +96,10 @@ static int starts_with(const char *s, const char *prefix)
     return strncmp(s, prefix, n) == 0;
 }
 
-static void trim(char *s)
+static void trim(char* s)
 {
-    char *end;
-    char *start = s;
+    char* end;
+    char* start = s;
 
     if (!s)
     {
@@ -132,9 +132,9 @@ static void reset_rules(void)
     g_rule_count = 0;
 }
 
-static int add_rule(rw_whitelist_rule_type_t type, const char *value)
+static int add_rule(rw_whitelist_rule_type_t type, const char* value)
 {
-    rw_whitelist_rule_t *r;
+    rw_whitelist_rule_t* r;
 
     if (g_rule_count >= RW_MAX_WHITELIST_RULES || !value || !*value)
     {
@@ -170,11 +170,11 @@ static void add_builtin_rules(void)
     add_rule(RW_WL_EXE_CONTAINS, "/chromium");
 }
 
-static int parse_rule_line(char *line)
+static int parse_rule_line(char* line)
 {
-    char *eq;
-    char *key;
-    char *value;
+    char* eq;
+    char* key;
+    char* value;
 
     trim(line);
 
@@ -229,9 +229,9 @@ static int parse_rule_line(char *line)
     return -1;
 }
 
-static int load_file(const char *path)
+static int load_file(const char* path)
 {
-    FILE *fp;
+    FILE* fp;
     char line[1024];
     int loaded = 0;
 
@@ -255,10 +255,10 @@ static int load_file(const char *path)
     return loaded;
 }
 
-static int reload_rules(const rw_config_t *cfg, int force)
+static int reload_rules(const rw_config_t* cfg, int force)
 {
     struct stat st;
-    const char *path;
+    const char* path;
 
     if (!cfg || !cfg->enable_whitelist)
     {
@@ -266,7 +266,8 @@ static int reload_rules(const rw_config_t *cfg, int force)
         return 0;
     }
 
-    path = cfg->whitelist_path && *cfg->whitelist_path ? cfg->whitelist_path : "config/whitelist.conf";
+    path =
+        cfg->whitelist_path && *cfg->whitelist_path ? cfg->whitelist_path : "config/whitelist.conf";
 
     if (snprintf(g_path, sizeof(g_path), "%s", path) < 0)
     {
@@ -309,7 +310,7 @@ static int reload_rules(const rw_config_t *cfg, int force)
     return 0;
 }
 
-int rw_whitelist_init(const rw_config_t *cfg)
+int rw_whitelist_init(const rw_config_t* cfg)
 {
     g_loaded = 0;
     g_last_mtime = 0;
@@ -318,7 +319,7 @@ int rw_whitelist_init(const rw_config_t *cfg)
     return reload_rules(cfg, 1);
 }
 
-void rw_whitelist_poll(const rw_config_t *cfg)
+void rw_whitelist_poll(const rw_config_t* cfg)
 {
     static time_t last_check = 0;
     time_t now = time(NULL);
@@ -338,11 +339,11 @@ void rw_whitelist_shutdown(void)
     g_loaded = 0;
 }
 
-int rw_whitelist_match(int pid, const char *comm, const char *exe, char *why, size_t why_len)
+int rw_whitelist_match(int pid, const char* comm, const char* exe, char* why, size_t why_len)
 {
     for (size_t i = 0; i < g_rule_count; i++)
     {
-        rw_whitelist_rule_t *r = &g_rules[i];
+        rw_whitelist_rule_t* r = &g_rules[i];
         int matched = 0;
 
         switch (r->type)
@@ -374,7 +375,8 @@ int rw_whitelist_match(int pid, const char *comm, const char *exe, char *why, si
         {
             if (why && why_len > 0)
             {
-                snprintf(why, why_len, "rule_index=%zu type=%d value=%s", i, (int)r->type, r->type == RW_WL_PID ? "<pid>" : r->value);
+                snprintf(why, why_len, "rule_index=%zu type=%d value=%s", i, (int)r->type,
+                         r->type == RW_WL_PID ? "<pid>" : r->value);
             }
 
             return 1;

@@ -23,7 +23,7 @@ static rw_event_record_t g_events[RW_MAX_EVENTS];
 static size_t g_event_count;
 static size_t g_event_next;
 
-static void write_time(FILE *fp, time_t ts)
+static void write_time(FILE* fp, time_t ts)
 {
     char buf[64];
     struct tm tmv;
@@ -40,22 +40,20 @@ void rw_event_init(void)
     g_event_next = 0;
 }
 
-void rw_event_add(int pid, const char *category, const char *detail)
+void rw_event_add(int pid, const char* category, const char* detail)
 {
     if (pid <= 0)
     {
         return;
     }
 
-    rw_event_record_t *ev = &g_events[g_event_next];
+    rw_event_record_t* ev = &g_events[g_event_next];
     memset(ev, 0, sizeof(*ev));
 
     ev->ts = time(NULL);
     ev->pid = pid;
-    snprintf(ev->category, sizeof(ev->category), "%s",
-             category && *category ? category : "event");
-    snprintf(ev->detail, sizeof(ev->detail), "%s",
-             detail && *detail ? detail : "<none>");
+    snprintf(ev->category, sizeof(ev->category), "%s", category && *category ? category : "event");
+    snprintf(ev->detail, sizeof(ev->detail), "%s", detail && *detail ? detail : "<none>");
 
     g_event_next = (g_event_next + 1) % RW_MAX_EVENTS;
 
@@ -65,7 +63,7 @@ void rw_event_add(int pid, const char *category, const char *detail)
     }
 }
 
-void rw_event_addf(int pid, const char *category, const char *fmt, ...)
+void rw_event_addf(int pid, const char* category, const char* fmt, ...)
 {
     char detail[RW_EVENT_DETAIL_LEN];
     va_list ap;
@@ -77,7 +75,7 @@ void rw_event_addf(int pid, const char *category, const char *fmt, ...)
     rw_event_add(pid, category, detail);
 }
 
-int rw_event_write_timeline(int case_pid, const char *case_dir)
+int rw_event_write_timeline(int case_pid, const char* case_dir)
 {
     if (case_pid <= 0 || !case_dir || !*case_dir)
     {
@@ -92,7 +90,7 @@ int rw_event_write_timeline(int case_pid, const char *case_dir)
         return -1;
     }
 
-    FILE *fp = fopen(path, "w");
+    FILE* fp = fopen(path, "w");
 
     if (!fp)
     {
@@ -113,7 +111,7 @@ int rw_event_write_timeline(int case_pid, const char *case_dir)
     for (size_t i = 0; i < g_event_count; i++)
     {
         size_t idx = (start + i) % RW_MAX_EVENTS;
-        const rw_event_record_t *ev = &g_events[idx];
+        const rw_event_record_t* ev = &g_events[idx];
 
         if (ev->pid <= 0)
         {

@@ -3,6 +3,7 @@ CLANG ?= clang
 
 CFLAGS ?= -Wall -Wextra -O2 -std=c11
 CPPFLAGS ?= -Iinclude/signalhunter -Iinclude
+LDFLAGS ?= -rdynamic
 
 WITH_EBPF ?= 0
 
@@ -64,7 +65,7 @@ SRCS = \
 
 OBJS := $(SRCS:.c=.o)
 
-LDLIBS =
+LDLIBS = -ldl
 
 ifeq ($(WITH_EBPF),1)
 CPPFLAGS += -DRW_WITH_EBPF
@@ -74,7 +75,7 @@ endif
 all: signalhunter
 
 signalhunter: $(OBJS)
-	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $(OBJS) $(LDLIBS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
@@ -110,7 +111,13 @@ ebpf:
 
 clean:
 	rm -f signalhunter signalhunter_ebpf.bpf.o
+	rm -f plugins/*.so
 	find src -name '*.o' -delete
 	rm -rf logs/
 
-.PHONY: all clean ebpf check-bpf-include
+plugins/example_heartbeat.so: plugins/example_heartbeat.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -fPIC -shared -o $@ $<
+
+plugins: plugins/example_heartbeat.so
+
+.PHONY: all clean ebpf check-bpf-include plugins

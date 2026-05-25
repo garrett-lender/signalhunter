@@ -17,14 +17,17 @@
 static rw_lineage_node_t g_nodes[RW_LINEAGE_MAX_NODES];
 static size_t g_node_count;
 
-static int is_numeric_name(const char *s)
+static int is_numeric_name(const char* s)
 {
-    if (!s || !*s) {
+    if (!s || !*s)
+    {
         return 0;
     }
 
-    for (; *s; s++) {
-        if (!isdigit((unsigned char)*s)) {
+    for (; *s; s++)
+    {
+        if (!isdigit((unsigned char)*s))
+        {
             return 0;
         }
     }
@@ -32,10 +35,12 @@ static int is_numeric_name(const char *s)
     return 1;
 }
 
-static rw_lineage_node_t *find_node(int pid)
+static rw_lineage_node_t* find_node(int pid)
 {
-    for (size_t i = 0; i < g_node_count; i++) {
-        if (g_nodes[i].pid == pid) {
+    for (size_t i = 0; i < g_node_count; i++)
+    {
+        if (g_nodes[i].pid == pid)
+        {
             return &g_nodes[i];
         }
     }
@@ -43,13 +48,14 @@ static rw_lineage_node_t *find_node(int pid)
     return NULL;
 }
 
-static rw_lineage_node_t *create_node(int pid)
+static rw_lineage_node_t* create_node(int pid)
 {
-    if (pid <= 0 || g_node_count >= RW_LINEAGE_MAX_NODES) {
+    if (pid <= 0 || g_node_count >= RW_LINEAGE_MAX_NODES)
+    {
         return NULL;
     }
 
-    rw_lineage_node_t *n = &g_nodes[g_node_count++];
+    rw_lineage_node_t* n = &g_nodes[g_node_count++];
     memset(n, 0, sizeof(*n));
 
     n->pid = pid;
@@ -63,10 +69,11 @@ static rw_lineage_node_t *create_node(int pid)
     return n;
 }
 
-static rw_lineage_node_t *get_or_create_node(int pid)
+static rw_lineage_node_t* get_or_create_node(int pid)
 {
-    rw_lineage_node_t *n = find_node(pid);
-    if (n) {
+    rw_lineage_node_t* n = find_node(pid);
+    if (n)
+    {
         return n;
     }
 
@@ -75,49 +82,61 @@ static rw_lineage_node_t *get_or_create_node(int pid)
 
 static void add_child(int parent_pid, int child_pid)
 {
-    if (parent_pid <= 0 || child_pid <= 0 || parent_pid == child_pid) {
+    if (parent_pid <= 0 || child_pid <= 0 || parent_pid == child_pid)
+    {
         return;
     }
 
-    rw_lineage_node_t *parent = get_or_create_node(parent_pid);
-    if (!parent) {
+    rw_lineage_node_t* parent = get_or_create_node(parent_pid);
+    if (!parent)
+    {
         return;
     }
 
-    for (size_t i = 0; i < parent->child_count; i++) {
-        if (parent->children[i] == child_pid) {
+    for (size_t i = 0; i < parent->child_count; i++)
+    {
+        if (parent->children[i] == child_pid)
+        {
             return;
         }
     }
 
-    if (parent->child_count < RW_LINEAGE_MAX_CHILDREN) {
+    if (parent->child_count < RW_LINEAGE_MAX_CHILDREN)
+    {
         parent->children[parent->child_count++] = child_pid;
     }
 }
 
-static int read_proc_status(int pid, int *ppid, char *comm, size_t comm_len)
+static int read_proc_status(int pid, int* ppid, char* comm, size_t comm_len)
 {
     char path[128];
     snprintf(path, sizeof(path), "/proc/%d/status", pid);
 
-    FILE *fp = fopen(path, "r");
-    if (!fp) {
+    FILE* fp = fopen(path, "r");
+    if (!fp)
+    {
         return -1;
     }
 
     char line[512];
     int have_any = 0;
 
-    while (fgets(line, sizeof(line), fp)) {
-        if (strncmp(line, "Name:", 5) == 0) {
+    while (fgets(line, sizeof(line), fp))
+    {
+        if (strncmp(line, "Name:", 5) == 0)
+        {
             char tmp[64] = {0};
-            if (sscanf(line, "Name:%63s", tmp) == 1 && comm && comm_len > 0) {
+            if (sscanf(line, "Name:%63s", tmp) == 1 && comm && comm_len > 0)
+            {
                 snprintf(comm, comm_len, "%s", tmp);
                 have_any = 1;
             }
-        } else if (strncmp(line, "PPid:", 5) == 0) {
+        }
+        else if (strncmp(line, "PPid:", 5) == 0)
+        {
             int tmp_ppid = 0;
-            if (sscanf(line, "PPid:%d", &tmp_ppid) == 1 && ppid) {
+            if (sscanf(line, "PPid:%d", &tmp_ppid) == 1 && ppid)
+            {
                 *ppid = tmp_ppid;
                 have_any = 1;
             }
@@ -128,17 +147,19 @@ static int read_proc_status(int pid, int *ppid, char *comm, size_t comm_len)
     return have_any ? 0 : -1;
 }
 
-static void read_proc_cmdline(int pid, char *out, size_t out_len)
+static void read_proc_cmdline(int pid, char* out, size_t out_len)
 {
-    if (!out || out_len == 0) {
+    if (!out || out_len == 0)
+    {
         return;
     }
 
     char path[128];
     snprintf(path, sizeof(path), "/proc/%d/cmdline", pid);
 
-    FILE *fp = fopen(path, "rb");
-    if (!fp) {
+    FILE* fp = fopen(path, "rb");
+    if (!fp)
+    {
         snprintf(out, out_len, "%s", "<unavailable>");
         return;
     }
@@ -146,15 +167,18 @@ static void read_proc_cmdline(int pid, char *out, size_t out_len)
     size_t n = fread(out, 1, out_len - 1, fp);
     fclose(fp);
 
-    if (n == 0) {
+    if (n == 0)
+    {
         snprintf(out, out_len, "%s", "<empty>");
         return;
     }
 
     out[n] = '\0';
 
-    for (size_t i = 0; i < n; i++) {
-        if (out[i] == '\0') {
+    for (size_t i = 0; i < n; i++)
+    {
+        if (out[i] == '\0')
+        {
             out[i] = ' ';
         }
     }
@@ -168,12 +192,14 @@ void rw_lineage_init(void)
 
 void rw_lineage_observe_pid(int pid)
 {
-    if (pid <= 0) {
+    if (pid <= 0)
+    {
         return;
     }
 
-    rw_lineage_node_t *n = get_or_create_node(pid);
-    if (!n) {
+    rw_lineage_node_t* n = get_or_create_node(pid);
+    if (!n)
+    {
         return;
     }
 
@@ -182,24 +208,29 @@ void rw_lineage_observe_pid(int pid)
     char exe[RW_MAX_PATH] = {0};
     char cmdline[RW_LINEAGE_MAX_CMDLINE] = {0};
 
-    if (read_proc_status(pid, &ppid, comm, sizeof(comm)) == 0) {
-        if (comm[0]) {
+    if (read_proc_status(pid, &ppid, comm, sizeof(comm)) == 0)
+    {
+        if (comm[0])
+        {
             snprintf(n->comm, sizeof(n->comm), "%s", comm);
         }
 
-        if (ppid > 0) {
+        if (ppid > 0)
+        {
             n->ppid = ppid;
             add_child(ppid, pid);
         }
     }
 
     rw_read_exe_path(pid, exe, sizeof(exe));
-    if (exe[0] && strcmp(exe, "<unknown>") != 0) {
+    if (exe[0] && strcmp(exe, "<unknown>") != 0)
+    {
         snprintf(n->exe, sizeof(n->exe), "%s", exe);
     }
 
     read_proc_cmdline(pid, cmdline, sizeof(cmdline));
-    if (cmdline[0]) {
+    if (cmdline[0])
+    {
         snprintf(n->cmdline, sizeof(n->cmdline), "%s", cmdline);
     }
 
@@ -208,14 +239,17 @@ void rw_lineage_observe_pid(int pid)
 
 void rw_lineage_refresh_procfs(void)
 {
-    DIR *proc = opendir("/proc");
-    if (!proc) {
+    DIR* proc = opendir("/proc");
+    if (!proc)
+    {
         return;
     }
 
-    struct dirent *de;
-    while ((de = readdir(proc)) != NULL) {
-        if (!is_numeric_name(de->d_name)) {
+    struct dirent* de;
+    while ((de = readdir(proc)) != NULL)
+    {
+        if (!is_numeric_name(de->d_name))
+        {
             continue;
         }
 
@@ -227,8 +261,9 @@ void rw_lineage_refresh_procfs(void)
 
 void rw_lineage_record_fork(int parent_pid, int child_pid)
 {
-    rw_lineage_node_t *child = get_or_create_node(child_pid);
-    if (!child) {
+    rw_lineage_node_t* child = get_or_create_node(child_pid);
+    if (!child)
+    {
         return;
     }
 
@@ -242,8 +277,9 @@ void rw_lineage_record_fork(int parent_pid, int child_pid)
 
 void rw_lineage_record_exec(int pid)
 {
-    rw_lineage_node_t *n = get_or_create_node(pid);
-    if (!n) {
+    rw_lineage_node_t* n = get_or_create_node(pid);
+    if (!n)
+    {
         return;
     }
 
@@ -253,8 +289,9 @@ void rw_lineage_record_exec(int pid)
 
 void rw_lineage_record_exit(int pid, int exit_code)
 {
-    rw_lineage_node_t *n = get_or_create_node(pid);
-    if (!n) {
+    rw_lineage_node_t* n = get_or_create_node(pid);
+    if (!n)
+    {
         return;
     }
 
@@ -264,66 +301,59 @@ void rw_lineage_record_exit(int pid, int exit_code)
     n->last_seen = n->exit_seen;
 }
 
-const rw_lineage_node_t *rw_lineage_get(int pid)
+const rw_lineage_node_t* rw_lineage_get(int pid)
 {
     return find_node(pid);
 }
 
-static void write_node_line(FILE *fp, const rw_lineage_node_t *n)
+static void write_node_line(FILE* fp, const rw_lineage_node_t* n)
 {
-    if (!fp || !n) {
+    if (!fp || !n)
+    {
         return;
     }
 
-    fprintf(fp,
-            "%d\t%d\t%s\t%s\t%s\t%ld\t%ld\t%ld\t%d\t%d\n",
-            n->pid,
-            n->ppid,
-            n->comm,
-            n->exe,
-            n->cmdline,
-            (long)n->first_seen,
-            (long)n->last_seen,
-            (long)n->exec_seen,
-            n->exited,
+    fprintf(fp, "%d\t%d\t%s\t%s\t%s\t%ld\t%ld\t%ld\t%d\t%d\n", n->pid, n->ppid, n->comm, n->exe,
+            n->cmdline, (long)n->first_seen, (long)n->last_seen, (long)n->exec_seen, n->exited,
             n->exit_code);
 }
 
-static void write_ancestor_tree(FILE *fp, int pid, int depth)
+static void write_ancestor_tree(FILE* fp, int pid, int depth)
 {
-    if (!fp || depth > RW_LINEAGE_MAX_DEPTH) {
+    if (!fp || depth > RW_LINEAGE_MAX_DEPTH)
+    {
         return;
     }
 
-    const rw_lineage_node_t *n = rw_lineage_get(pid);
-    if (!n) {
-        for (int i = 0; i < depth; i++) {
+    const rw_lineage_node_t* n = rw_lineage_get(pid);
+    if (!n)
+    {
+        for (int i = 0; i < depth; i++)
+        {
             fprintf(fp, "    ");
         }
         fprintf(fp, "%d <unknown>\n", pid);
         return;
     }
 
-    if (n->ppid > 0) {
+    if (n->ppid > 0)
+    {
         write_ancestor_tree(fp, n->ppid, depth + 1);
     }
 
-    for (int i = 0; i < depth; i++) {
+    for (int i = 0; i < depth; i++)
+    {
         fprintf(fp, "    ");
     }
 
-    fprintf(fp, "pid=%d ppid=%d comm=%s exe=%s%s\n",
-            n->pid,
-            n->ppid,
-            n->comm,
-            n->exe,
+    fprintf(fp, "pid=%d ppid=%d comm=%s exe=%s%s\n", n->pid, n->ppid, n->comm, n->exe,
             n->exited ? " [exited]" : "");
 }
 
 static int is_ancestor_of(int ancestor_pid, int pid)
 {
     int guard = 0;
-    const rw_lineage_node_t *cur = rw_lineage_get(pid);
+    const rw_lineage_node_t* cur = rw_lineage_get(pid);
 
     while (cur && guard++ < RW_LINEAGE_MAX_DEPTH)
     {
@@ -347,7 +377,7 @@ static int case_root_for_pid(int pid)
 {
     int root = pid;
     int guard = 0;
-    const rw_lineage_node_t *cur = rw_lineage_get(pid);
+    const rw_lineage_node_t* cur = rw_lineage_get(pid);
 
     while (cur && guard++ < RW_LINEAGE_MAX_DEPTH)
     {
@@ -356,7 +386,7 @@ static int case_root_for_pid(int pid)
             break;
         }
 
-        const rw_lineage_node_t *parent = rw_lineage_get(cur->ppid);
+        const rw_lineage_node_t* parent = rw_lineage_get(cur->ppid);
 
         if (!parent)
         {
@@ -402,14 +432,15 @@ int rw_lineage_is_related(int case_pid, int pid)
     return 0;
 }
 
-static void write_manifest_header(FILE *fp)
+static void write_manifest_header(FILE* fp)
 {
-    fprintf(fp, "pid\tppid\tcomm\texe\tcmdline\tfirst_seen\tlast_seen\texec_seen\texited\texit_code\n");
+    fprintf(fp,
+            "pid\tppid\tcomm\texe\tcmdline\tfirst_seen\tlast_seen\texec_seen\texited\texit_code\n");
 }
 
-static void write_family_tree(FILE *fp, int pid, int depth)
+static void write_family_tree(FILE* fp, int pid, int depth)
 {
-    const rw_lineage_node_t *n = rw_lineage_get(pid);
+    const rw_lineage_node_t* n = rw_lineage_get(pid);
 
     if (!fp || !n || depth > RW_LINEAGE_MAX_DEPTH)
     {
@@ -421,13 +452,8 @@ static void write_family_tree(FILE *fp, int pid, int depth)
         fprintf(fp, "    ");
     }
 
-    fprintf(fp, "%s pid=%d ppid=%d comm=%s exe=%s%s\n",
-            depth == 0 ? "" : "└──",
-            n->pid,
-            n->ppid,
-            n->comm,
-            n->exe,
-            n->exited ? " [exited]" : "");
+    fprintf(fp, "%s pid=%d ppid=%d comm=%s exe=%s%s\n", depth == 0 ? "" : "└──", n->pid, n->ppid,
+            n->comm, n->exe, n->exited ? " [exited]" : "");
 
     for (size_t i = 0; i < n->child_count; i++)
     {
@@ -435,7 +461,7 @@ static void write_family_tree(FILE *fp, int pid, int depth)
     }
 }
 
-int rw_lineage_write_case(int pid, const char *case_dir)
+int rw_lineage_write_case(int pid, const char* case_dir)
 {
     if (pid <= 0 || !case_dir || !*case_dir)
     {
@@ -455,7 +481,7 @@ int rw_lineage_write_case(int pid, const char *case_dir)
         return -1;
     }
 
-    FILE *tsv = fopen(path, "w");
+    FILE* tsv = fopen(path, "w");
 
     if (tsv)
     {
@@ -479,7 +505,7 @@ int rw_lineage_write_case(int pid, const char *case_dir)
         return -1;
     }
 
-    FILE *manifest = fopen(path, "w");
+    FILE* manifest = fopen(path, "w");
 
     if (manifest)
     {
@@ -503,7 +529,7 @@ int rw_lineage_write_case(int pid, const char *case_dir)
         return -1;
     }
 
-    FILE *tree = fopen(path, "w");
+    FILE* tree = fopen(path, "w");
 
     if (tree)
     {
