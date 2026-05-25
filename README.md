@@ -393,3 +393,37 @@ process_tree.txt
 ## Notes
 
 SignalHunter is an evolving research platform, not a production security product. It is designed for defensive monitoring, Linux telemetry research, detection engineering, and EDR prototyping.
+
+---
+
+# Whitelist / Trust Reduction
+
+SignalHunter includes a whitelist module for reducing noise from trusted processes.
+Whitelisted processes are **not hidden** and evidence is still logged, but score deltas are reduced.
+
+Default file:
+
+```text
+config/whitelist.conf
+```
+
+Run with a custom whitelist:
+
+```bash
+sudo ./signalhunter --whitelist config/whitelist.conf --whitelist-percent 25
+```
+
+Disable whitelist scoring adjustments:
+
+```bash
+sudo ./signalhunter --no-whitelist
+```
+
+Rule examples:
+
+```text
+comm_contains=firefox
+exe_prefix=/usr/lib/firefox/
+exe=/usr/bin/vmtoolsd
+pid=1234
+```

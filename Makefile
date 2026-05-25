@@ -48,6 +48,7 @@ SRCS = \
 	src/core/score.c \
 	src/core/lineage.c \
 	src/core/module.c \
+	src/core/whitelist.c \
 	src/core/event.c \
 	src/core/util.c \
 	src/case/case.c \

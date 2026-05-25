@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 
 #include "module.h"
+#include "whitelist.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -105,7 +106,40 @@ static void ebpf_shutdown_mod(rw_module_t *module)
     rw_ebpf_shutdown();
 }
 
+
+static int whitelist_enabled(const rw_config_t *cfg)
+{
+    return cfg && cfg->enable_whitelist;
+}
+
+static int whitelist_init_mod(rw_module_t *module, const rw_config_t *cfg)
+{
+    module->fd = -1;
+    return rw_whitelist_init(cfg);
+}
+
+static void whitelist_poll_mod(rw_module_t *module, const rw_config_t *cfg)
+{
+    (void)module;
+    rw_whitelist_poll(cfg);
+}
+
+static void whitelist_shutdown_mod(rw_module_t *module)
+{
+    (void)module;
+    rw_whitelist_shutdown();
+}
+
 static rw_module_t g_modules[] = {
+    {
+        .name = "whitelist",
+        .initialized = 0,
+        .fd = -1,
+        .enabled = whitelist_enabled,
+        .init = whitelist_init_mod,
+        .poll = whitelist_poll_mod,
+        .shutdown = whitelist_shutdown_mod,
+    },
     {
         .name = "proc_connector",
         .initialized = 0,

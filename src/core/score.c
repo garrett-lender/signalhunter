@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 #include "signalhunter.h"
+#include "whitelist.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -513,6 +514,8 @@ int rw_score_add(int pid,
     int normalized;
     int threshold;
     int floor;
+    int whitelisted = 0;
+    char whitelist_reason[256] = {0};
 
     if (pid <= 0 || points <= 0)
     {
@@ -549,6 +552,31 @@ int rw_score_add(int pid,
     normalized = normalized_points(p, cat, category, reason, points);
     floor = default_floor_for_finding(category, reason, points);
 
+    if (cfg && cfg->enable_whitelist && rw_whitelist_match(pid, p->comm, p->exe, whitelist_reason, sizeof(whitelist_reason)))
+    {
+        int percent = cfg->whitelist_score_percent;
+
+        whitelisted = 1;
+
+        if (percent < 0)
+        {
+            percent = 0;
+        }
+
+        if (percent > 100)
+        {
+            percent = 100;
+        }
+
+        normalized = (normalized * percent) / 100;
+        floor = (floor * percent) / 100;
+
+        if (normalized < 1)
+        {
+            normalized = 1;
+        }
+    }
+
     p->category_scores[cat] = clamp_int(p->category_scores[cat] + normalized, 0, 100);
     p->finding_flags |= flags;
 
@@ -574,7 +602,7 @@ int rw_score_add(int pid,
 
     threshold = cfg && cfg->case_threshold > 0 ? cfg->case_threshold : 60;
 
-    rw_log_score("pid=%d comm=%s exe=%s risk=%d peak=%d delta=%d raw_points=%d before=%d threshold=%d bucket=%s bucket_score=%d corr=%d floor=%d category=%s reason=%s",
+    rw_log_score("pid=%d comm=%s exe=%s risk=%d peak=%d delta=%d raw_points=%d before=%d threshold=%d bucket=%s bucket_score=%d corr=%d floor=%d whitelisted=%d whitelist_reason=%s category=%s reason=%s",
                  pid,
                  p->comm,
                  p->exe,
@@ -588,12 +616,14 @@ int rw_score_add(int pid,
                  p->category_scores[cat],
                  p->correlation_bonus,
                  p->risk_floor,
+                 whitelisted,
+                 whitelist_reason[0] ? whitelist_reason : "none",
                  category && *category ? category : "unknown",
                  reason && *reason ? reason : "unknown");
 
     rw_event_addf(pid,
                   category && *category ? category : "score",
-                  "risk=%d before=%d delta=%d raw_points=%d peak=%d threshold=%d bucket=%s bucket_score=%d corr=%d floor=%d comm=%s exe=%s reason=%s",
+                  "risk=%d before=%d delta=%d raw_points=%d peak=%d threshold=%d bucket=%s bucket_score=%d corr=%d floor=%d whitelisted=%d whitelist_reason=%s comm=%s exe=%s reason=%s",
                   p->score,
                   before,
                   normalized,
@@ -604,19 +634,22 @@ int rw_score_add(int pid,
                   p->category_scores[cat],
                   p->correlation_bonus,
                   p->risk_floor,
+                  whitelisted,
+                  whitelist_reason[0] ? whitelist_reason : "none",
                   p->comm,
                   p->exe,
                   reason && *reason ? reason : "unknown");
 
     if (cfg && cfg->verbose)
     {
-        printf("[score] pid=%d risk=%d +%d bucket=%s bucket_score=%d corr=%d reason=%s\n",
+        printf("[score] pid=%d risk=%d +%d bucket=%s bucket_score=%d corr=%d whitelisted=%d reason=%s\n",
                pid,
                p->score,
                normalized,
                category_name(cat),
                p->category_scores[cat],
                p->correlation_bonus,
+               whitelisted,
                reason && *reason ? reason : "unknown");
     }
 
@@ -637,7 +670,7 @@ int rw_score_add(int pid,
                       p->score,
                       cfg,
                       category && *category ? category : "SCORE",
-                      "risk=%d delta=%d raw_points=%d peak=%d bucket=%s bucket_score=%d corr=%d floor=%d comm=%s exe=%s reason=%s",
+                      "risk=%d delta=%d raw_points=%d peak=%d bucket=%s bucket_score=%d corr=%d floor=%d whitelisted=%d whitelist_reason=%s comm=%s exe=%s reason=%s",
                       p->score,
                       normalized,
                       points,
@@ -646,6 +679,8 @@ int rw_score_add(int pid,
                       p->category_scores[cat],
                       p->correlation_bonus,
                       p->risk_floor,
+                      whitelisted,
+                      whitelist_reason[0] ? whitelist_reason : "none",
                       p->comm,
                       p->exe,
                       reason && *reason ? reason : "unknown");
@@ -656,7 +691,7 @@ int rw_score_add(int pid,
                       p->score,
                       cfg,
                       category && *category ? category : "SCORE",
-                      "below_threshold_update risk=%d delta=%d raw_points=%d peak=%d bucket=%s bucket_score=%d corr=%d floor=%d comm=%s exe=%s reason=%s",
+                      "below_threshold_update risk=%d delta=%d raw_points=%d peak=%d bucket=%s bucket_score=%d corr=%d floor=%d whitelisted=%d whitelist_reason=%s comm=%s exe=%s reason=%s",
                       p->score,
                       normalized,
                       points,
@@ -665,6 +700,8 @@ int rw_score_add(int pid,
                       p->category_scores[cat],
                       p->correlation_bonus,
                       p->risk_floor,
+                      whitelisted,
+                      whitelist_reason[0] ? whitelist_reason : "none",
                       p->comm,
                       p->exe,
                       reason && *reason ? reason : "unknown");

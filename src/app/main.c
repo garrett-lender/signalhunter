@@ -106,6 +106,9 @@ void rw_usage(const char *argv0) {
     printf("  --log-max-bytes <n>   rotate each log after n bytes, default: 10485760\n");
     printf("  --log-archives <n>    keep n rotated archives, default: 5\n");
     printf("  --log-rate-seconds <n> suppress identical log lines within n seconds, default: 10; 0 disables\n");
+    printf("  --no-whitelist         disable whitelist/trust reduction module\n");
+    printf("  --whitelist <file>     whitelist rule file, default: config/whitelist.conf\n");
+    printf("  --whitelist-percent <n> score percent for whitelisted processes, default: 25\n");
 }
 
 static void parse_options(int argc, char **argv, int start, rw_config_t *cfg) {
@@ -120,6 +123,7 @@ static void parse_options(int argc, char **argv, int start, rw_config_t *cfg) {
         else if (strcmp(argv[i], "--quiet-syn") == 0) cfg->log_synscan = 0;
         else if (strcmp(argv[i], "--quiet-syscalls") == 0) cfg->log_syscalls = 0;
         else if (strcmp(argv[i], "--syslog") == 0) cfg->use_syslog = 1;
+        else if (strcmp(argv[i], "--no-whitelist") == 0) cfg->enable_whitelist = 0;
         else if (strcmp(argv[i], "--case-threshold") == 0) {
             if (i + 1 < argc) {
                 cfg->case_threshold = atoi(argv[++i]);
@@ -148,6 +152,14 @@ static void parse_options(int argc, char **argv, int start, rw_config_t *cfg) {
             if (i + 1 < argc) { cfg->log_rate_seconds = atoi(argv[++i]); if (cfg->log_rate_seconds < 0) cfg->log_rate_seconds = 0; }
             else fprintf(stderr, "[warn] --log-rate-seconds requires a number\n");
         }
+        else if (strcmp(argv[i], "--whitelist") == 0) {
+            if (i + 1 < argc) cfg->whitelist_path = argv[++i];
+            else fprintf(stderr, "[warn] --whitelist requires a file\n");
+        }
+        else if (strcmp(argv[i], "--whitelist-percent") == 0) {
+            if (i + 1 < argc) { cfg->whitelist_score_percent = atoi(argv[++i]); if (cfg->whitelist_score_percent < 0) cfg->whitelist_score_percent = 0; if (cfg->whitelist_score_percent > 100) cfg->whitelist_score_percent = 100; }
+            else fprintf(stderr, "[warn] --whitelist-percent requires a number\n");
+        }
         else fprintf(stderr, "[warn] unknown option ignored: %s\n", argv[i]);
     }
 }
@@ -171,6 +183,9 @@ int main(int argc, char **argv) {
         .log_max_bytes = 10L * 1024L * 1024L,
         .log_archives = 5,
         .log_rate_seconds = 10,
+        .enable_whitelist = 1,
+        .whitelist_path = "config/whitelist.conf",
+        .whitelist_score_percent = 25,
     };
 
     if (argc == 1 || argv[1][0] == '-') {
